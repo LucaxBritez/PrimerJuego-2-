@@ -8,9 +8,13 @@ public partial class Player : Area2D
 	public Vector2 ScreenSize; //Variable que almacena el tamaño de la ventana de juego.
 	public Vector2 velocity = Vector2.Zero; // Vector de movimiento del jugador.
 	
+	[Signal]
+	public delegate void HitEventHandler();
+	
 	public override void _Ready()
 	{
 		ScreenSize = GetViewportRect().Size;
+		Hide();
 	}
 
 	/*
@@ -19,7 +23,7 @@ public partial class Player : Area2D
 			 ejecutando el juego)
 	.Size:
 		Accede a la propiedad "Size" del rectangulo, que representa las dimensiones en terminos de ancho y alto.
-	ScreenSize= GetViewportRect().Size:
+		ScreenSize= GetViewportRect().Size:
 		En esta linea, se esta asignando el tamaño de la pantalla(o del area de visualizacion) a la variable "Screensize"
 	*/
 	
@@ -27,16 +31,19 @@ public partial class Player : Area2D
 	{
 		//Esta linea hace que el valor de velocity se actualize
 		velocity = ProcesarInputs(velocity); 
+		//Esto funciono por que el metodo recibe velocity y lo modifica, por lo tanto debe devolver el cambio en la variable.
+		velocity = DetenerOIniciarAnimacionJugador(velocity);
+		SeleccionarAnimacionJugador();
 		LimitarMovimientoAEscenario(velocity, delta);
 		
 		//Esta linea hace que el valor de velocity vuelva a cero una vez realizado el proceso
 		velocity = Vector2.Zero;
 		
- 		GD.Print("Velocidad actualizada: ", velocity);
 	}
 	
 	private Vector2 ProcesarInputs(Vector2 velocity)
 	{
+		//En algun momento esto se puede pasar a un Switch
 		if (Input.IsActionPressed("mover_derecha"))
 		{
 			velocity.X += 1;
@@ -56,7 +63,11 @@ public partial class Player : Area2D
 		{
 			velocity.Y -= 1;
 		}
-
+		return velocity;
+	}
+	
+	private Vector2 DetenerOIniciarAnimacionJugador(Vector2 velocity)
+	{
 		var animatedSprite2D = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
 
 		if (velocity.Length() > 0)
@@ -71,6 +82,27 @@ public partial class Player : Area2D
 		return velocity;
 	}
 	
+	private void SeleccionarAnimacionJugador()
+	{
+		
+		var animatedSprite2D = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
+	
+		if (velocity.X != 0)
+		{
+			animatedSprite2D.Animation = "Caminar";
+			animatedSprite2D.FlipV = false;
+			// See the note below about boolean assignment.
+			animatedSprite2D.FlipH = velocity.X < 0;
+		}
+		else if (velocity.Y != 0)
+		{
+			animatedSprite2D.Animation = "Subir";
+			animatedSprite2D.FlipV = velocity.Y > 0;
+		}
+		
+		
+	}
+	
 	private void LimitarMovimientoAEscenario(Vector2 velocity, double delta)
 	{
 		Position += velocity * (float)delta;
@@ -79,6 +111,45 @@ public partial class Player : Area2D
 		y: Mathf.Clamp(Position.Y, 0, ScreenSize.Y)
 		);
 	}
-	
-	
+
+	private void OnBodyEntered(Node2D body)
+	{
+		// Oculta al jugador después de ser golpeado.
+		Hide();
+
+		// Emite la señal personalizada llamada "Hit".
+		EmitSignal(SignalName.Hit);
+
+		// Debe ser diferido ya que no podemos cambiar propiedades físicas en una devolución de llamada de física.
+		GetNode<CollisionShape2D>("CollisionShape2D").SetDeferred(CollisionShape2D.PropertyName.Disabled, true);
+	}
+
+	public void Start(Vector2 position)
+	{
+		// Establece la posición del nodo (posiblemente un objeto o personaje) en la posición proporcionada.
+		Position = position;
+
+		// Muestra el nodo en la pantalla.
+		Show();
+
+		// Habilita el componente CollisionShape2D asociado al nodo.
+		GetNode<CollisionShape2D>("CollisionShape2D").Disabled = false;
+	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
