@@ -19,10 +19,11 @@ public partial class Mob : RigidBody2D
 		animatedSprite2D.Play(mobTypes[GD.Randi() % mobTypes.Length]);
 		
 	}
+	private void OnVisibleOnScreenNotifier2DScreenExited()
+		{
+			QueueFree();
+		}
 }
 
 
-private void OnVisibleOnScreenNotifier2DScreenExited()
-{
-	QueueFree();
-}
+
